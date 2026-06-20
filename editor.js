@@ -129,6 +129,8 @@
         scheduleSave();
     });
 
+    $("#btn-clear").addEventListener("click", clearFormatting);
+
     /* ============================================================
        Block formatting — replace the block's tag (never nest)
        ============================================================ */
@@ -184,6 +186,66 @@
         sel.removeAllRanges();
         sel.addRange(r);
         savedRange = r.cloneRange();
+        scheduleSave();
+    }
+
+    // Clear formatting: strip styles, links and lists → plain paragraphs.
+    // Leaves structural blocks (images, go-deeper, dividers) untouched.
+    function clearFormatting() {
+        editor.focus();
+        restoreSelection();
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const blocks = topLevelBlocksInRange(sel.getRangeAt(0));
+        if (blocks.length === 0) {
+            document.execCommand("removeFormat");
+            document.execCommand("unlink");
+            document.execCommand("formatBlock", false, "p");
+            scheduleSave();
+            return;
+        }
+        const newPs = [];
+        const toPlainP = (text) => {
+            const p = document.createElement("p");
+            if (text.trim()) p.textContent = text.trim();
+            else p.innerHTML = "<br>";
+            return p;
+        };
+        blocks.forEach((block) => {
+            // Don't flatten images, go-deeper buttons or dividers
+            if (
+                block.tagName === "FIGURE" ||
+                block.tagName === "HR" ||
+                block.classList.contains("adt-go-deeper")
+            ) {
+                return;
+            }
+            if (block.tagName === "UL" || block.tagName === "OL") {
+                const frag = document.createDocumentFragment();
+                Array.from(block.children)
+                    .filter((c) => c.tagName === "LI")
+                    .forEach((li) => {
+                        const p = toPlainP(li.textContent);
+                        frag.appendChild(p);
+                        newPs.push(p);
+                    });
+                if (frag.childNodes.length) block.replaceWith(frag);
+                else block.remove();
+            } else {
+                const p = toPlainP(block.textContent);
+                block.replaceWith(p);
+                newPs.push(p);
+            }
+        });
+        if (newPs.length) {
+            const r = document.createRange();
+            r.setStart(newPs[0], 0);
+            const last = newPs[newPs.length - 1];
+            r.setEnd(last, last.childNodes.length);
+            sel.removeAllRanges();
+            sel.addRange(r);
+            savedRange = r.cloneRange();
+        }
         scheduleSave();
     }
 
