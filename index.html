@@ -116,9 +116,10 @@
                 <label class="range">
                     <span>
                         <input type="checkbox" id="crop-on" />
-                        Crop height <b id="h-val">—</b>
+                        Crop ratio (w : h) <b id="h-val">—</b>
                     </span>
-                    <input type="range" id="h-range" min="120" max="600" step="10" value="320" disabled />
+                    <input type="range" id="h-range" min="60" max="300" step="5" value="150" disabled />
+                    <small class="range-hint">Keeps the same proportions on desktop and mobile.</small>
                 </label>
             </div>
 

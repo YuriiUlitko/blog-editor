@@ -418,6 +418,12 @@ body {
 .range input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
 .range input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
 .range input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+.range-hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0;
+    text-transform: none;
+}
 .dlg-title {
     margin: 0;
     font-size: 17px;

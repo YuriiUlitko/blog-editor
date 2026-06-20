@@ -233,7 +233,7 @@
         return a;
     }
 
-    function buildFigure(src, alt, caption, widthPct, cropH) {
+    function buildFigure(src, alt, caption, widthPct, aspect) {
         const fig = document.createElement("figure");
         fig.setAttribute("contenteditable", "false");
         // Inline !important so it overrides the Framer .adt-prose stylesheet
@@ -243,8 +243,10 @@
         const img = document.createElement("img");
         img.src = src;
         img.alt = alt || "";
-        if (cropH) {
-            img.style.cssText = "height:" + cropH + "px !important;object-fit:cover !important";
+        // Crop via aspect-ratio (not fixed px) so the shape scales with the
+        // column width and stays identical on desktop, tablet and mobile.
+        if (aspect) {
+            img.style.cssText = "aspect-ratio:" + aspect + " !important;object-fit:cover !important";
         }
         fig.appendChild(img);
         if (caption) {
@@ -283,7 +285,7 @@
                 alt: (img && img.getAttribute("alt")) || "",
                 caption: (cap && cap.textContent) || "",
                 width: parseInt(fig.style.width, 10) || 100,
-                cropH: (img && parseInt(img.style.height, 10)) || 0,
+                aspect: (img && parseFloat(img.style.aspectRatio)) || 0,
             });
         }
     });
@@ -350,13 +352,16 @@
     const hVal = $("#h-val");
 
     function currentCrop() {
-        return cropChk.checked ? parseInt(hRange.value, 10) : 0;
+        // slider value is ratio×100 → return the aspect ratio (w/h), or 0 = no crop
+        return cropChk.checked ? parseInt(hRange.value, 10) / 100 : 0;
     }
 
     function updatePreview() {
         wVal.textContent = wRange.value + "%";
         hRange.disabled = !cropChk.checked;
-        hVal.textContent = cropChk.checked ? hRange.value + "px" : "—";
+        hVal.textContent = cropChk.checked
+            ? (parseInt(hRange.value, 10) / 100).toFixed(2) + " : 1"
+            : "—";
 
         const url = imgUrl.value.trim();
         imgAdjust.hidden = !url;
@@ -381,8 +386,9 @@
         imgAlt.value = (data && data.alt) || "";
         imgCaption.value = (data && data.caption) || "";
         wRange.value = (data && data.width) || 100;
-        cropChk.checked = !!(data && data.cropH);
-        hRange.value = (data && data.cropH) || 320;
+        const aspect = (data && data.aspect) || 0;
+        cropChk.checked = !!aspect;
+        hRange.value = aspect ? Math.round(aspect * 100) : 150;
         imgStatus.textContent = "Uploads to your R2 bucket via the Worker.";
         imgStatus.classList.remove("error");
         refreshImgInsert();
