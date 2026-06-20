@@ -98,6 +98,7 @@ body {
 #editor {
     outline: none;
     min-height: 60vh;
+    scroll-margin-top: 84px;
 }
 #editor:empty::before {
     content: "Start writing… select text and use the toolbar to format it.";
@@ -109,6 +110,7 @@ body {
 .raw {
     width: 100%;
     min-height: 70vh;
+    scroll-margin-top: 84px;
     resize: vertical;
     background: var(--bg-soft);
     color: #e6e6e6;

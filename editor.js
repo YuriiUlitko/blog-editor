@@ -20,8 +20,26 @@
         document.execCommand("defaultParagraphSeparator", false, "p");
     } catch (e) {}
 
-    /* ---------- Starter content ---------- */
-    editor.innerHTML = [
+    /* ---------- Persistence (localStorage) ---------- */
+    const STORAGE_KEY = "blogEditorContent";
+
+    let htmlMode = false;
+    let saveTimer = null;
+    function currentHTML() {
+        return htmlMode ? raw.value : getCleanHTML();
+    }
+    function save() {
+        try {
+            localStorage.setItem(STORAGE_KEY, currentHTML());
+        } catch (e) {}
+    }
+    function scheduleSave() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(save, 400);
+    }
+
+    /* ---------- Initial content: saved draft, else starter ---------- */
+    const STARTER = [
         "<h2>The visibility trap</h2>",
         "<p>Most tattoo artists who struggle with bookings don't have a talent problem. They have a <strong>visibility problem</strong> — or worse, a conversion problem they've misdiagnosed as a visibility problem.</p>",
         "<blockquote>Advertising amplifies what's already there.</blockquote>",
@@ -29,7 +47,17 @@
         '<a class="adt-go-deeper" href="/blog/meta-ads-for-tattoo-artists" contenteditable="false"><span class="adt-go-deeper-label">Go deeper</span>Meta Ads for Tattoo Artists: The Booking Framework</a>',
         "<p><br></p>",
     ].join("");
+
+    let savedDraft = null;
+    try {
+        savedDraft = localStorage.getItem(STORAGE_KEY);
+    } catch (e) {}
+    editor.innerHTML = savedDraft && savedDraft.trim() ? savedDraft : STARTER;
     normalize();
+
+    // Save on every edit (typing in either view)
+    editor.addEventListener("input", scheduleSave);
+    raw.addEventListener("input", scheduleSave);
 
     /* ============================================================
        Selection helpers — keep the caret while clicking toolbar
@@ -65,16 +93,17 @@
         if (!b) return;
 
         if (b.dataset.block) {
-            editor.focus();
-            document.execCommand("formatBlock", false, b.dataset.block);
+            setBlock(b.dataset.block);
         } else if (b.dataset.list) {
             editor.focus();
             document.execCommand(
                 b.dataset.list === "ul" ? "insertUnorderedList" : "insertOrderedList"
             );
+            scheduleSave();
         } else if (b.dataset.inline) {
             editor.focus();
             document.execCommand(b.dataset.inline);
+            scheduleSave();
         }
     });
 
@@ -83,12 +112,72 @@
         if (!url) return;
         restoreSelection();
         document.execCommand("createLink", false, url);
+        scheduleSave();
     });
 
     $("#btn-hr").addEventListener("click", () => {
         restoreSelection();
         document.execCommand("insertHorizontalRule");
+        scheduleSave();
     });
+
+    /* ============================================================
+       Block formatting — replace the block's tag (never nest)
+       ============================================================ */
+    function topLevelBlocksInRange(range) {
+        const blocks = [];
+        editor.childNodes.forEach((node) => {
+            if (node.nodeType === 1 && range.intersectsNode(node)) blocks.push(node);
+        });
+        return blocks;
+    }
+
+    function convertBlock(block, tag) {
+        // Never touch structural blocks
+        if (
+            block.tagName === "FIGURE" ||
+            block.tagName === "UL" ||
+            block.tagName === "OL" ||
+            block.tagName === "HR" ||
+            block.classList.contains("adt-go-deeper")
+        ) {
+            return block;
+        }
+        const el = document.createElement(tag);
+        while (block.firstChild) el.appendChild(block.firstChild);
+        if (!el.firstChild) el.appendChild(document.createElement("br"));
+        block.replaceWith(el);
+        return el;
+    }
+
+    function setBlock(tag) {
+        editor.focus();
+        restoreSelection();
+        const sel = window.getSelection();
+        if (!sel.rangeCount) {
+            document.execCommand("formatBlock", false, tag);
+            scheduleSave();
+            return;
+        }
+        const range = sel.getRangeAt(0);
+        const blocks = topLevelBlocksInRange(range);
+        if (blocks.length === 0) {
+            // Caret sits in a bare text node — let the browser wrap it
+            document.execCommand("formatBlock", false, tag);
+            scheduleSave();
+            return;
+        }
+        const converted = blocks.map((b) => convertBlock(b, tag));
+        const first = converted[0];
+        const last = converted[converted.length - 1];
+        const r = document.createRange();
+        r.setStart(first, 0);
+        r.setEnd(last, last.childNodes.length);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        savedRange = r.cloneRange();
+        scheduleSave();
+    }
 
     /* ============================================================
        Insert / replace block nodes (go-deeper, figure)
@@ -116,6 +205,7 @@
         if (editingNode) {
             editingNode.replaceWith(el);
             editingNode = null;
+            scheduleSave();
             return;
         }
         restoreSelection();
@@ -127,6 +217,7 @@
         p.innerHTML = "<br>";
         el.after(p);
         placeCaret(p);
+        scheduleSave();
     }
 
     function buildGoDeeper(url, title) {
@@ -482,7 +573,6 @@
     /* ============================================================
        Toggle visual <-> HTML source
        ============================================================ */
-    let htmlMode = false;
     btnToggle.addEventListener("click", () => {
         htmlMode = !htmlMode;
         if (htmlMode) {
@@ -490,13 +580,18 @@
             editor.hidden = true;
             raw.hidden = false;
             btnToggle.classList.add("active");
+            // Scroll the code view into view from its top
+            raw.scrollIntoView({ behavior: "smooth", block: "start" });
+            raw.focus();
         } else {
             editor.innerHTML = raw.value;
             normalize();
             editor.hidden = false;
             raw.hidden = true;
             btnToggle.classList.remove("active");
+            editor.scrollIntoView({ behavior: "smooth", block: "start" });
         }
+        save();
     });
 
     /* ============================================================
