@@ -28,6 +28,8 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       # No build step — it's a plain static site. Upload the repo root.
       - name: Upload artifact
