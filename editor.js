@@ -15,6 +15,14 @@
     const btnToggle = $("#btn-toggle");
     const toastEl = $("#toast");
 
+    // Offset the page by the fixed toolbar's height (it can wrap to 2 rows)
+    function syncTopPad() {
+        document.body.style.paddingTop = toolbar.offsetHeight + "px";
+    }
+    syncTopPad();
+    window.addEventListener("resize", syncTopPad);
+    if (window.ResizeObserver) new ResizeObserver(syncTopPad).observe(toolbar);
+
     // Enter creates <p> instead of <div>
     try {
         document.execCommand("defaultParagraphSeparator", false, "p");
@@ -264,30 +272,32 @@
             .forEach((el) => el.setAttribute("contenteditable", "false"));
     }
 
-    // Double-click an existing go-deeper / figure to edit it
-    editor.addEventListener("dblclick", (e) => {
+    // Single-click a go-deeper button to edit it (never follow the link)
+    editor.addEventListener("click", (e) => {
         const gd = e.target.closest(".adt-go-deeper");
-        if (gd) {
-            editingNode = gd;
-            openGoDeeper({
-                url: gd.getAttribute("href") || "",
-                title: (gd.lastChild && gd.lastChild.textContent) || "",
-            });
-            return;
-        }
+        if (!gd) return;
+        e.preventDefault();
+        editingNode = gd;
+        openGoDeeper({
+            url: gd.getAttribute("href") || "",
+            title: (gd.lastChild && gd.lastChild.textContent) || "",
+        });
+    });
+
+    // Double-click a figure to edit it
+    editor.addEventListener("dblclick", (e) => {
         const fig = e.target.closest("figure");
-        if (fig) {
-            editingNode = fig;
-            const img = fig.querySelector("img");
-            const cap = fig.querySelector("figcaption");
-            openImage({
-                url: (img && img.getAttribute("src")) || "",
-                alt: (img && img.getAttribute("alt")) || "",
-                caption: (cap && cap.textContent) || "",
-                width: parseInt(fig.style.width, 10) || 100,
-                aspect: (img && parseFloat(img.style.aspectRatio)) || 0,
-            });
-        }
+        if (!fig) return;
+        editingNode = fig;
+        const img = fig.querySelector("img");
+        const cap = fig.querySelector("figcaption");
+        openImage({
+            url: (img && img.getAttribute("src")) || "",
+            alt: (img && img.getAttribute("alt")) || "",
+            caption: (cap && cap.textContent) || "",
+            width: parseInt(fig.style.width, 10) || 100,
+            aspect: (img && parseFloat(img.style.aspectRatio)) || 0,
+        });
     });
 
     /* ============================================================
@@ -316,9 +326,11 @@
     );
 
     /* ----- Go deeper modal ----- */
+    const gdDelete = $("#gd-delete");
     function openGoDeeper(data) {
         $("#gd-url").value = (data && data.url) || "";
         $("#gd-title").value = (data && data.title) || "";
+        gdDelete.hidden = !editingNode; // only when editing an existing button
         show("#ov-godeeper");
         setTimeout(() => $("#gd-url").focus(), 30);
     }
@@ -336,6 +348,14 @@
         insertBlockNode(buildGoDeeper(url, title));
         hideAll();
     });
+    gdDelete.addEventListener("click", () => {
+        if (editingNode) {
+            editingNode.remove();
+            editingNode = null;
+            scheduleSave();
+        }
+        hideAll();
+    });
 
     /* ----- Image modal ----- */
     const imgUrl = $("#img-url");
@@ -350,6 +370,7 @@
     const cropChk = $("#crop-on");
     const hRange = $("#h-range");
     const hVal = $("#h-val");
+    const imgDelete = $("#img-delete");
 
     function currentCrop() {
         // slider value is ratio×100 → return the aspect ratio (w/h), or 0 = no crop
@@ -389,6 +410,7 @@
         const aspect = (data && data.aspect) || 0;
         cropChk.checked = !!aspect;
         hRange.value = aspect ? Math.round(aspect * 100) : 150;
+        imgDelete.hidden = !editingNode; // only when editing an existing image
         imgStatus.textContent = "Uploads to your R2 bucket via the Worker.";
         imgStatus.classList.remove("error");
         refreshImgInsert();
@@ -426,6 +448,14 @@
                 currentCrop()
             )
         );
+        hideAll();
+    });
+    imgDelete.addEventListener("click", () => {
+        if (editingNode) {
+            editingNode.remove();
+            editingNode = null;
+            scheduleSave();
+        }
         hideAll();
     });
 

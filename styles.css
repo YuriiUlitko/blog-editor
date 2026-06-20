@@ -27,15 +27,17 @@ body {
 
 /* ── Toolbar ── */
 .toolbar {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 20;
     display: flex;
     align-items: center;
     gap: 14px;
     flex-wrap: wrap;
     padding: 12px 18px;
-    background: rgba(10, 10, 12, 0.85);
+    background: rgba(10, 10, 12, 0.92);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--line);
@@ -485,6 +487,17 @@ body {
 .dialog button.primary { background: var(--accent); color: #fff; }
 .dialog button.primary:hover { background: color-mix(in srgb, var(--accent) 85%, #fff); }
 .dialog button:disabled { opacity: 0.4; cursor: not-allowed; }
+.dialog button.danger {
+    margin-right: auto;
+    background: transparent;
+    border-color: rgba(255, 107, 107, 0.35);
+    color: #ff6b6b;
+}
+.dialog button.danger:hover {
+    background: rgba(255, 107, 107, 0.1);
+    border-color: rgba(255, 107, 107, 0.6);
+}
+.dialog button.danger[hidden] { display: none; }
 
 /* Dropzone */
 .dropzone {
