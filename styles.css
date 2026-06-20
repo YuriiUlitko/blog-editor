@@ -317,15 +317,19 @@ body {
 
 /* Images */
 .adt-prose figure {
+    margin: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    width: 100%;
+    align-self: center;
 }
 .adt-prose img {
     width: 100%;
     height: auto;
     display: block;
     border-radius: 6px;
+    object-fit: cover;
 }
 .adt-prose figcaption {
     font-family: var(--mono);
@@ -371,6 +375,8 @@ body {
 .dialog {
     width: 100%;
     max-width: 460px;
+    max-height: 92vh;
+    overflow-y: auto;
     background: var(--bg-soft);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 14px;
@@ -380,6 +386,36 @@ body {
     flex-direction: column;
     gap: 16px;
 }
+
+/* Image size + crop controls */
+.img-adjust {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.img-preview {
+    gap: 8px !important;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+}
+.range { display: flex; flex-direction: column; gap: 8px; }
+.range > span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+}
+.range > span b { color: #fff; font-weight: 600; }
+.range input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.range input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+.range input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
 .dlg-title {
     margin: 0;
     font-size: 17px;

@@ -10,17 +10,17 @@ compatibility_date = "2024-09-23"
 # the Cloudflare dashboard (R2 > Create bucket).
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "CHANGE-ME-bucket-name"     # CHANGE-ME
+bucket_name = "blog-images"
 
 [vars]
 # Public base URL where the bucket's objects are served. Either the
 # r2.dev public URL (R2 > your bucket > Settings > Public access), or a
 # custom domain you've connected. No trailing slash.
-PUBLIC_BASE_URL = "https://CHANGE-ME.r2.dev"   # CHANGE-ME
+PUBLIC_BASE_URL = "https://pub-8f658125d48045788861dd98f53f3d8f.r2.dev"
 
 # Lock uploads to your editor's origin. Use "*" while testing, then set
 # it to your GitHub Pages origin, e.g. https://yourname.github.io
-ALLOWED_ORIGIN = "*"                       # CHANGE-ME (recommended)
+ALLOWED_ORIGIN = "https://yuriiulitko.github.io"
 
 # UPLOAD_TOKEN is NOT set here — it's a secret. Set it (optional) with:
 #   wrangler secret put UPLOAD_TOKEN

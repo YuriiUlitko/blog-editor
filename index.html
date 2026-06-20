@@ -104,6 +104,24 @@
                 <input type="text" id="img-caption" placeholder="Shot on set, May 2026" />
             </label>
 
+            <!-- Size + crop controls with live preview -->
+            <div class="img-adjust" id="img-adjust" hidden>
+                <div class="img-preview adt-prose" id="img-preview"></div>
+
+                <label class="range">
+                    <span>Width <b id="w-val">100%</b></span>
+                    <input type="range" id="w-range" min="40" max="100" step="5" value="100" />
+                </label>
+
+                <label class="range">
+                    <span>
+                        <input type="checkbox" id="crop-on" />
+                        Crop height <b id="h-val">—</b>
+                    </span>
+                    <input type="range" id="h-range" min="120" max="600" step="10" value="320" disabled />
+                </label>
+            </div>
+
             <div class="dlg-actions">
                 <button class="ghost" data-close>Cancel</button>
                 <button class="primary" id="img-insert" disabled>Insert</button>

@@ -1,0 +1,11 @@
+# Wrangler local state / cache (may contain account identifiers)
+.wrangler/
+worker/.wrangler/
+
+# Dependencies / build
+node_modules/
+dist/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db

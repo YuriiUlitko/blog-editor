@@ -142,12 +142,19 @@
         return a;
     }
 
-    function buildFigure(src, alt, caption) {
+    function buildFigure(src, alt, caption, widthPct, cropH) {
         const fig = document.createElement("figure");
         fig.setAttribute("contenteditable", "false");
+        // Inline !important so it overrides the Framer .adt-prose stylesheet
+        if (widthPct && widthPct < 100) {
+            fig.style.cssText = "width:" + widthPct + "% !important;margin:0 auto !important";
+        }
         const img = document.createElement("img");
         img.src = src;
         img.alt = alt || "";
+        if (cropH) {
+            img.style.cssText = "height:" + cropH + "px !important;object-fit:cover !important";
+        }
         fig.appendChild(img);
         if (caption) {
             const fc = document.createElement("figcaption");
@@ -184,6 +191,8 @@
                 url: (img && img.getAttribute("src")) || "",
                 alt: (img && img.getAttribute("alt")) || "",
                 caption: (cap && cap.textContent) || "",
+                width: parseInt(fig.style.width, 10) || 100,
+                cropH: (img && parseInt(img.style.height, 10)) || 0,
             });
         }
     });
@@ -239,14 +248,54 @@
     const imgUrl = $("#img-url");
     const imgInsert = $("#img-insert");
     const imgStatus = $("#img-status");
+    const imgAlt = $("#img-alt");
+    const imgCaption = $("#img-caption");
+    const imgAdjust = $("#img-adjust");
+    const imgPreview = $("#img-preview");
+    const wRange = $("#w-range");
+    const wVal = $("#w-val");
+    const cropChk = $("#crop-on");
+    const hRange = $("#h-range");
+    const hVal = $("#h-val");
+
+    function currentCrop() {
+        return cropChk.checked ? parseInt(hRange.value, 10) : 0;
+    }
+
+    function updatePreview() {
+        wVal.textContent = wRange.value + "%";
+        hRange.disabled = !cropChk.checked;
+        hVal.textContent = cropChk.checked ? hRange.value + "px" : "—";
+
+        const url = imgUrl.value.trim();
+        imgAdjust.hidden = !url;
+        if (!url) {
+            imgPreview.innerHTML = "";
+            return;
+        }
+        const fig = buildFigure(
+            url,
+            imgAlt.value.trim(),
+            imgCaption.value.trim(),
+            parseInt(wRange.value, 10),
+            currentCrop()
+        );
+        fig.removeAttribute("contenteditable");
+        imgPreview.innerHTML = "";
+        imgPreview.appendChild(fig);
+    }
 
     function openImage(data) {
         imgUrl.value = (data && data.url) || "";
-        $("#img-alt").value = (data && data.alt) || "";
-        $("#img-caption").value = (data && data.caption) || "";
+        imgAlt.value = (data && data.alt) || "";
+        imgCaption.value = (data && data.caption) || "";
+        wRange.value = (data && data.width) || 100;
+        cropChk.checked = !!(data && data.cropH);
+        hRange.value = (data && data.cropH) || 320;
         imgStatus.textContent = "Uploads to your R2 bucket via the Worker.";
         imgStatus.classList.remove("error");
         refreshImgInsert();
+        updatePreview();
         show("#ov-image");
     }
     $("#btn-image").addEventListener("click", () => {
@@ -257,13 +306,28 @@
     function refreshImgInsert() {
         imgInsert.disabled = !imgUrl.value.trim();
     }
-    imgUrl.addEventListener("input", refreshImgInsert);
+
+    imgUrl.addEventListener("input", () => {
+        refreshImgInsert();
+        updatePreview();
+    });
+    imgAlt.addEventListener("input", updatePreview);
+    imgCaption.addEventListener("input", updatePreview);
+    wRange.addEventListener("input", updatePreview);
+    hRange.addEventListener("input", updatePreview);
+    cropChk.addEventListener("change", updatePreview);
 
     imgInsert.addEventListener("click", () => {
         const url = imgUrl.value.trim();
         if (!url) return;
         insertBlockNode(
-            buildFigure(url, $("#img-alt").value.trim(), $("#img-caption").value.trim())
+            buildFigure(
+                url,
+                imgAlt.value.trim(),
+                imgCaption.value.trim(),
+                parseInt(wRange.value, 10),
+                currentCrop()
+            )
         );
         hideAll();
     });
@@ -316,6 +380,7 @@
             if (!data.url) throw new Error("No URL returned");
             imgUrl.value = data.url;
             refreshImgInsert();
+            updatePreview();
             imgStatus.textContent = "Uploaded ✓";
         } catch (err) {
             imgStatus.classList.add("error");
@@ -350,7 +415,7 @@
         H2: [], H3: [], H4: [], P: [], BLOCKQUOTE: [],
         UL: [], OL: [], LI: [],
         A: ["href", "class"], STRONG: [], EM: [], BR: [], HR: [],
-        FIGURE: [], IMG: ["src", "alt"], FIGCAPTION: [], SPAN: ["class"],
+        FIGURE: ["style"], IMG: ["src", "alt", "style"], FIGCAPTION: [], SPAN: ["class"],
     };
     const TAG_MAP = { B: "STRONG", I: "EM", DIV: "P" };
     const VOID = new Set(["BR", "HR", "IMG"]);
