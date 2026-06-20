@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blog HTML Editor — Digital Ink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <!-- ── Toolbar ── -->
+    <header class="toolbar" id="toolbar">
+        <div class="tb-group">
+            <button data-block="h2" title="Section heading (H2)">H2</button>
+            <button data-block="h3" title="Subheading (H3)">H3</button>
+            <button data-block="p" title="Paragraph">¶</button>
+            <button data-block="blockquote" title="Quote">❝</button>
+        </div>
+
+        <div class="tb-group">
+            <button data-list="ul" title="Bullet list">•&nbsp;List</button>
+            <button data-list="ol" title="Numbered list">1.&nbsp;List</button>
+        </div>
+
+        <div class="tb-group">
+            <button data-inline="bold" title="Bold"><b>B</b></button>
+            <button data-inline="italic" title="Italic"><i>I</i></button>
+            <button id="btn-link" title="Inline link">Link</button>
+        </div>
+
+        <div class="tb-group">
+            <button id="btn-godeeper" title="Insert a “Go deeper” button">↗&nbsp;Go&nbsp;deeper</button>
+            <button id="btn-image" title="Insert image">▣&nbsp;Image</button>
+            <button id="btn-hr" title="Divider">—</button>
+        </div>
+
+        <div class="tb-spacer"></div>
+
+        <div class="tb-group">
+            <button id="btn-settings" title="Upload settings">⚙</button>
+            <button id="btn-toggle" title="Toggle between visual and HTML source">&lt;/&gt;&nbsp;HTML</button>
+            <button id="btn-copy" class="primary" title="Copy the HTML for Framer">Copy&nbsp;HTML</button>
+        </div>
+    </header>
+
+    <!-- ── Editor ── -->
+    <main class="stage">
+        <div class="column">
+            <div
+                id="editor"
+                class="adt-prose"
+                contenteditable="true"
+                spellcheck="true"
+            ></div>
+            <textarea id="raw" class="raw" spellcheck="false" hidden></textarea>
+        </div>
+    </main>
+
+    <!-- ── Modal: Go deeper ── -->
+    <div class="overlay" id="ov-godeeper" hidden>
+        <div class="dialog">
+            <h3 class="dlg-title">Go deeper button</h3>
+            <label class="field">
+                <span>Link URL</span>
+                <input type="text" id="gd-url" placeholder="/blog/article-slug or https://…" />
+            </label>
+            <label class="field">
+                <span>Article title</span>
+                <input type="text" id="gd-title" placeholder="Meta Ads for Tattoo Artists: The Booking Framework" />
+            </label>
+            <div class="dlg-actions">
+                <button class="ghost" data-close>Cancel</button>
+                <button class="primary" id="gd-insert">Insert</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: Image ── -->
+    <div class="overlay" id="ov-image" hidden>
+        <div class="dialog">
+            <h3 class="dlg-title">Insert image</h3>
+
+            <div class="dropzone" id="img-drop">
+                <input type="file" id="img-file" accept="image/*" hidden />
+                <p class="dz-main">Drop an image here, or <span class="link">browse</span></p>
+                <p class="dz-sub" id="img-status">Uploads to your R2 bucket via the Worker.</p>
+            </div>
+
+            <label class="field">
+                <span>Image URL</span>
+                <input type="text" id="img-url" placeholder="https://pub-xxxx.r2.dev/blog/…" />
+            </label>
+            <label class="field">
+                <span>Alt text <em>(accessibility)</em></span>
+                <input type="text" id="img-alt" placeholder="Close-up of a fine-line tattoo in progress" />
+            </label>
+            <label class="field">
+                <span>Caption <em>(optional)</em></span>
+                <input type="text" id="img-caption" placeholder="Shot on set, May 2026" />
+            </label>
+
+            <div class="dlg-actions">
+                <button class="ghost" data-close>Cancel</button>
+                <button class="primary" id="img-insert" disabled>Insert</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: Settings ── -->
+    <div class="overlay" id="ov-settings" hidden>
+        <div class="dialog">
+            <h3 class="dlg-title">Upload settings</h3>
+            <p class="dlg-note">
+                These are stored only in this browser (localStorage). The R2 keys
+                themselves never live here — they stay in your Cloudflare Worker.
+            </p>
+            <label class="field">
+                <span>Worker URL</span>
+                <input type="text" id="set-url" placeholder="https://blog-image-uploader.you.workers.dev" />
+            </label>
+            <label class="field">
+                <span>Upload token <em>(optional)</em></span>
+                <input type="text" id="set-token" placeholder="Only if you set UPLOAD_TOKEN on the Worker" />
+            </label>
+            <div class="dlg-actions">
+                <button class="ghost" data-close>Cancel</button>
+                <button class="primary" id="set-save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <script src="editor.js"></script>
+</body>
+</html>

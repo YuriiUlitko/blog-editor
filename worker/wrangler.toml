@@ -1,0 +1,26 @@
+# Cloudflare Worker config for the R2 image uploader.
+# Fill in the three values marked CHANGE-ME, then run:  wrangler deploy
+
+name = "blog-image-uploader"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# Bind your R2 bucket here. No access keys needed — the binding gives
+# the Worker direct access. `bucket_name` is the bucket you created in
+# the Cloudflare dashboard (R2 > Create bucket).
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "CHANGE-ME-bucket-name"     # CHANGE-ME
+
+[vars]
+# Public base URL where the bucket's objects are served. Either the
+# r2.dev public URL (R2 > your bucket > Settings > Public access), or a
+# custom domain you've connected. No trailing slash.
+PUBLIC_BASE_URL = "https://CHANGE-ME.r2.dev"   # CHANGE-ME
+
+# Lock uploads to your editor's origin. Use "*" while testing, then set
+# it to your GitHub Pages origin, e.g. https://yourname.github.io
+ALLOWED_ORIGIN = "*"                       # CHANGE-ME (recommended)
+
+# UPLOAD_TOKEN is NOT set here — it's a secret. Set it (optional) with:
+#   wrangler secret put UPLOAD_TOKEN
