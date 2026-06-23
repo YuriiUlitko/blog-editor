@@ -327,11 +327,75 @@
         return fig;
     }
 
+    // ── Video block (cases-page design) ──
+    const PLAY_SVG =
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+
+    function buildVideoFigure(url) {
+        const fig = document.createElement("figure");
+        fig.className = "adt-video";
+        fig.setAttribute("contenteditable", "false");
+        const v = document.createElement("video");
+        v.src = url;
+        v.preload = "metadata";
+        v.setAttribute("playsinline", "");
+        fig.appendChild(v);
+        decorateVideo(fig);
+        return fig;
+    }
+
+    // Inject the play button / badges overlay and wire preview playback
+    function decorateVideo(fig) {
+        const v = fig.querySelector("video");
+        if (!v || fig.querySelector(".adt-video-play")) return;
+
+        const shade = document.createElement("span");
+        shade.className = "adt-video-shade";
+        shade.setAttribute("aria-hidden", "true");
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "adt-video-play";
+        btn.setAttribute("aria-label", "Play video");
+        btn.innerHTML = PLAY_SVG;
+
+        const badge = document.createElement("span");
+        badge.className = "adt-video-badge";
+        badge.innerHTML = '<span class="adt-video-dot"></span>Video';
+
+        const hd = document.createElement("span");
+        hd.className = "adt-video-hd";
+        hd.textContent = "HD";
+
+        fig.append(shade, btn, badge, hd);
+
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            v.controls = true;
+            v.play();
+            fig.classList.add("is-playing");
+        });
+        v.addEventListener("play", () => fig.classList.add("is-playing"));
+        v.addEventListener("loadedmetadata", () => {
+            const d = v.duration;
+            if (d && isFinite(d)) {
+                const m = Math.floor(d / 60);
+                const s = Math.floor(d % 60);
+                badge.innerHTML =
+                    '<span class="adt-video-dot"></span>Video · ' +
+                    String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+            }
+        });
+    }
+
     function normalize() {
         // Lock structural blocks so their internals can't be mangled
         editor
             .querySelectorAll(".adt-go-deeper, figure")
             .forEach((el) => el.setAttribute("contenteditable", "false"));
+        // Rebuild video overlays for figures loaded from saved/raw HTML
+        editor.querySelectorAll("figure.adt-video").forEach(decorateVideo);
     }
 
     // Single-click a go-deeper button to edit it (never follow the link)
@@ -346,11 +410,16 @@
         });
     });
 
-    // Double-click a figure to edit it
+    // Double-click a figure to edit it (image or video)
     editor.addEventListener("dblclick", (e) => {
         const fig = e.target.closest("figure");
         if (!fig) return;
         editingNode = fig;
+        if (fig.classList.contains("adt-video")) {
+            const v = fig.querySelector("video");
+            openVideo({ url: (v && v.getAttribute("src")) || "" });
+            return;
+        }
         const img = fig.querySelector("img");
         const cap = fig.querySelector("figcaption");
         openImage({
@@ -545,35 +614,53 @@
         if (f) handleUpload(f);
     });
 
-    async function handleUpload(file) {
-        const workerUrl = localStorage.getItem("r2WorkerUrl");
-        if (!workerUrl) {
-            imgStatus.textContent =
-                "No Worker URL set — open ⚙ Settings, or just paste an image URL below.";
-            imgStatus.classList.add("error");
-            return;
-        }
-        imgStatus.classList.remove("error");
-        imgStatus.textContent = "Uploading " + file.name + "…";
+    // ── Media library (localStorage) + shared uploader ──
+    const LIB_KEY = "blogMediaLibrary";
+    function isVideoUrl(u) {
+        return /\.(mp4|webm|mov|m4v|ogv|ogg)(\?|#|$)/i.test(u || "");
+    }
+    function addToLibrary(url, type) {
         try {
-            const token = localStorage.getItem("r2UploadToken") || "";
-            const fd = new FormData();
-            fd.append("file", file);
-            const res = await fetch(workerUrl, {
-                method: "POST",
-                headers: token ? { Authorization: "Bearer " + token } : {},
-                body: fd,
-            });
-            if (!res.ok) throw new Error("HTTP " + res.status);
-            const data = await res.json();
-            if (!data.url) throw new Error("No URL returned");
-            imgUrl.value = data.url;
+            const lib = JSON.parse(localStorage.getItem(LIB_KEY) || "[]");
+            if (!lib.some((it) => it.url === url)) {
+                lib.unshift({ url, type });
+                localStorage.setItem(LIB_KEY, JSON.stringify(lib.slice(0, 200)));
+            }
+        } catch (e) {}
+    }
+    async function uploadToWorker(file) {
+        const workerUrl = localStorage.getItem("r2WorkerUrl");
+        if (!workerUrl) throw new Error("NO_WORKER");
+        const token = localStorage.getItem("r2UploadToken") || "";
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch(workerUrl, {
+            method: "POST",
+            headers: token ? { Authorization: "Bearer " + token } : {},
+            body: fd,
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (!data.url) throw new Error("No URL returned");
+        return data.url;
+    }
+
+    async function handleUpload(file) {
+        try {
+            imgStatus.classList.remove("error");
+            imgStatus.textContent = "Uploading " + file.name + "…";
+            const url = await uploadToWorker(file);
+            addToLibrary(url, "image");
+            imgUrl.value = url;
             refreshImgInsert();
             updatePreview();
             imgStatus.textContent = "Uploaded ✓";
         } catch (err) {
             imgStatus.classList.add("error");
-            imgStatus.textContent = "Upload failed: " + err.message;
+            imgStatus.textContent =
+                err.message === "NO_WORKER"
+                    ? "No Worker URL set — open ⚙ Settings, or paste an image URL below."
+                    : "Upload failed: " + err.message;
         }
     }
 
@@ -589,6 +676,179 @@
         hideAll();
         toast("Settings saved.");
     });
+
+    /* ----- Video modal ----- */
+    const vidUrl = $("#vid-url");
+    const vidInsert = $("#vid-insert");
+    const vidStatus = $("#vid-status");
+    const vidPreview = $("#vid-preview");
+    const vidDelete = $("#vid-delete");
+
+    function updateVidPreview() {
+        const url = vidUrl.value.trim();
+        vidInsert.disabled = !url;
+        vidPreview.innerHTML = "";
+        if (url) {
+            const fig = buildVideoFigure(url);
+            fig.removeAttribute("contenteditable");
+            vidPreview.appendChild(fig);
+        }
+    }
+
+    function openVideo(data) {
+        vidUrl.value = (data && data.url) || "";
+        vidDelete.hidden = !editingNode;
+        vidStatus.textContent = "Uploads to your R2 bucket via the Worker.";
+        vidStatus.classList.remove("error");
+        updateVidPreview();
+        show("#ov-video");
+    }
+    $("#btn-video").addEventListener("click", () => {
+        editingNode = null;
+        openVideo();
+    });
+    vidUrl.addEventListener("input", updateVidPreview);
+    vidInsert.addEventListener("click", () => {
+        const url = vidUrl.value.trim();
+        if (!url) return;
+        insertBlockNode(buildVideoFigure(url));
+        hideAll();
+    });
+    vidDelete.addEventListener("click", () => {
+        if (editingNode) {
+            editingNode.remove();
+            editingNode = null;
+            scheduleSave();
+        }
+        hideAll();
+    });
+
+    async function handleVideoUpload(file) {
+        try {
+            vidStatus.classList.remove("error");
+            vidStatus.textContent = "Uploading " + file.name + "…";
+            const url = await uploadToWorker(file);
+            addToLibrary(url, "video");
+            vidUrl.value = url;
+            updateVidPreview();
+            vidStatus.textContent = "Uploaded ✓";
+        } catch (err) {
+            vidStatus.classList.add("error");
+            vidStatus.textContent =
+                err.message === "NO_WORKER"
+                    ? "No Worker URL set — open ⚙ Settings, or paste a video URL below."
+                    : "Upload failed: " + err.message;
+        }
+    }
+
+    const vidDrop = $("#vid-drop");
+    const vidFile = $("#vid-file");
+    vidDrop.addEventListener("click", () => vidFile.click());
+    vidFile.addEventListener("change", () => {
+        if (vidFile.files[0]) handleVideoUpload(vidFile.files[0]);
+    });
+    ["dragenter", "dragover"].forEach((ev) =>
+        vidDrop.addEventListener(ev, (e) => { e.preventDefault(); vidDrop.classList.add("drag"); })
+    );
+    ["dragleave", "drop"].forEach((ev) =>
+        vidDrop.addEventListener(ev, (e) => { e.preventDefault(); vidDrop.classList.remove("drag"); })
+    );
+    vidDrop.addEventListener("drop", (e) => {
+        const f = e.dataTransfer.files[0];
+        if (f) handleVideoUpload(f);
+    });
+
+    /* ----- Gallery modal ----- */
+    const galleryGrid = $("#gallery-grid");
+    const galleryNote = $("#gallery-note");
+
+    function insertMedia(url) {
+        hideAll();
+        editingNode = null;
+        if (isVideoUrl(url)) insertBlockNode(buildVideoFigure(url));
+        else insertBlockNode(buildFigure(url, "", "", 100, 0));
+    }
+
+    function renderGallery(items) {
+        galleryGrid.innerHTML = "";
+        if (!items.length) {
+            const empty = document.createElement("div");
+            empty.className = "gallery-empty";
+            empty.textContent = "Nothing here yet — uploaded photos and videos will appear here.";
+            galleryGrid.appendChild(empty);
+            return;
+        }
+        items.forEach((it) => {
+            const url = it.url;
+            const video = it.type ? it.type === "video" : isVideoUrl(url);
+            const cell = document.createElement("div");
+            cell.className = "gallery-item";
+            cell.title = url;
+            if (video) {
+                const v = document.createElement("video");
+                v.src = url;
+                v.preload = "metadata";
+                v.muted = true;
+                cell.appendChild(v);
+                const play = document.createElement("span");
+                play.className = "gallery-play";
+                play.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>';
+                cell.appendChild(play);
+            } else {
+                const img = document.createElement("img");
+                img.src = url;
+                img.loading = "lazy";
+                cell.appendChild(img);
+            }
+            const tag = document.createElement("span");
+            tag.className = "gallery-type";
+            tag.textContent = video ? "Video" : "Photo";
+            cell.appendChild(tag);
+            cell.addEventListener("click", () => insertMedia(url));
+            galleryGrid.appendChild(cell);
+        });
+    }
+
+    async function openGallery() {
+        editingNode = null;
+        show("#ov-gallery");
+        galleryNote.textContent = "Loading…";
+        galleryGrid.innerHTML = "";
+
+        let items = [];
+        let source = "";
+        const workerUrl = localStorage.getItem("r2WorkerUrl");
+        // 1) Try the bucket listing via the Worker
+        if (workerUrl) {
+            try {
+                const token = localStorage.getItem("r2UploadToken") || "";
+                const res = await fetch(workerUrl, {
+                    method: "GET",
+                    headers: token ? { Authorization: "Bearer " + token } : {},
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    items = (data.items || []).filter((it) =>
+                        /\.(jpg|jpeg|png|gif|webp|avif|svg|mp4|webm|mov|m4v|ogv|ogg)(\?|#|$)/i.test(it.url)
+                    );
+                    source = "bucket";
+                }
+            } catch (e) {}
+        }
+        // 2) Fall back to the local library
+        if (items.length === 0) {
+            try {
+                items = JSON.parse(localStorage.getItem(LIB_KEY) || "[]");
+            } catch (e) { items = []; }
+            source = "local";
+        }
+        galleryNote.textContent =
+            items.length === 0
+                ? "Click an item to insert it at the cursor."
+                : `Click an item to insert it · ${items.length} from ${source === "bucket" ? "your R2 bucket" : "this browser"}`;
+        renderGallery(items);
+    }
+    $("#btn-gallery").addEventListener("click", openGallery);
 
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
@@ -623,6 +883,14 @@
     function nodeHtml(node) {
         if (node.nodeType === 3) return esc(node.nodeValue);
         if (node.nodeType !== 1) return "";
+
+        // Video block → emit a minimal figure; the overlay is rebuilt on render
+        if (node.tagName === "FIGURE" && node.classList && node.classList.contains("adt-video")) {
+            const v = node.querySelector("video");
+            const src = v ? v.getAttribute("src") : "";
+            if (!src) return "";
+            return '<figure class="adt-video"><video src="' + esc(src) + '" preload="metadata" playsinline></video></figure>';
+        }
 
         let tag = node.tagName;
         if (tag in TAG_MAP) tag = TAG_MAP[tag];

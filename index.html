@@ -36,6 +36,7 @@
         <div class="tb-group">
             <button id="btn-godeeper" title="Insert a “Go deeper” button">↗&nbsp;Go&nbsp;deeper</button>
             <button id="btn-image" title="Insert image">▣&nbsp;Image</button>
+            <button id="btn-video" title="Insert video">▶&nbsp;Video</button>
             <button id="btn-hr" title="Divider">—</button>
         </div>
 
@@ -47,6 +48,7 @@
 
         <div class="tb-group">
             <button id="btn-settings" title="Upload settings">⚙</button>
+            <button id="btn-gallery" title="Media gallery">▦&nbsp;Gallery</button>
             <button id="btn-toggle" title="Toggle between visual and HTML source">&lt;/&gt;&nbsp;HTML</button>
             <button id="btn-copy" class="primary" title="Copy the HTML for Framer">Copy&nbsp;HTML</button>
         </div>
@@ -156,6 +158,41 @@
                 <button class="ghost" data-close>Cancel</button>
                 <button class="primary" id="set-save">Save</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: Video ── -->
+    <div class="overlay" id="ov-video" hidden>
+        <div class="dialog">
+            <h3 class="dlg-title">Insert video</h3>
+
+            <div class="dropzone" id="vid-drop">
+                <input type="file" id="vid-file" accept="video/*" hidden />
+                <p class="dz-main">Drop a video here, or <span class="link">browse</span></p>
+                <p class="dz-sub" id="vid-status">Uploads to your R2 bucket via the Worker.</p>
+            </div>
+
+            <label class="field">
+                <span>Video URL</span>
+                <input type="text" id="vid-url" placeholder="https://pub-xxxx.r2.dev/blog/clip.mp4" />
+            </label>
+
+            <div class="vid-preview adt-prose" id="vid-preview"></div>
+
+            <div class="dlg-actions">
+                <button class="ghost danger" id="vid-delete" hidden>Delete</button>
+                <button class="ghost" data-close>Cancel</button>
+                <button class="primary" id="vid-insert" disabled>Insert</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: Gallery ── -->
+    <div class="overlay" id="ov-gallery" hidden>
+        <div class="dialog dialog--wide">
+            <h3 class="dlg-title">Gallery</h3>
+            <p class="dlg-note" id="gallery-note">Click an item to insert it at the cursor.</p>
+            <div class="gallery-grid" id="gallery-grid"></div>
         </div>
     </div>
 

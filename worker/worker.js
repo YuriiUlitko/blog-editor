@@ -12,7 +12,7 @@ export default {
     async fetch(request, env) {
         const cors = {
             "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Max-Age": "86400",
         };
@@ -20,16 +20,38 @@ export default {
         if (request.method === "OPTIONS") {
             return new Response(null, { headers: cors });
         }
-        if (request.method !== "POST") {
-            return json({ error: "Method not allowed" }, 405, cors);
-        }
 
-        // Optional auth
+        // Optional auth (applies to both upload and list)
         if (env.UPLOAD_TOKEN) {
             const auth = request.headers.get("Authorization") || "";
             if (auth !== "Bearer " + env.UPLOAD_TOKEN) {
                 return json({ error: "Unauthorized" }, 401, cors);
             }
+        }
+
+        const baseUrl = (env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
+
+        // GET → list everything in the bucket (newest first) for the Gallery
+        if (request.method === "GET") {
+            const items = [];
+            let cursor;
+            do {
+                const listing = await env.BUCKET.list({ prefix: "blog/", limit: 1000, cursor });
+                for (const o of listing.objects) {
+                    items.push({
+                        key: o.key,
+                        url: baseUrl + "/" + o.key,
+                        uploaded: o.uploaded ? new Date(o.uploaded).getTime() : 0,
+                    });
+                }
+                cursor = listing.truncated ? listing.cursor : undefined;
+            } while (cursor);
+            items.sort((a, b) => b.uploaded - a.uploaded);
+            return json({ items }, 200, cors);
+        }
+
+        if (request.method !== "POST") {
+            return json({ error: "Method not allowed" }, 405, cors);
         }
 
         let form;
@@ -59,7 +81,6 @@ export default {
             httpMetadata: { contentType: file.type || "application/octet-stream" },
         });
 
-        const baseUrl = (env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
         return json({ url: baseUrl + "/" + key, key }, 200, cors);
     },
 };
